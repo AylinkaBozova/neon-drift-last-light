@@ -722,7 +722,7 @@ class Game:
             self.high_score = max(self.high_score, int(self.score))
             self.add_explosion(self.player.pos, RED, 100, 360)
 
-        self.camera.update(0, 0)
+       
         if self.shake > 0.5:
             self.camera.x = random.uniform(-self.shake, self.shake)
             self.camera.y = random.uniform(-self.shake, self.shake)
