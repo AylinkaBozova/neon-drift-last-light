@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://aylinkabozova.github.io/neon-drift-last-light/sitemap.xml
