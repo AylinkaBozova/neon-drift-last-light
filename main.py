@@ -1,11 +1,13 @@
+
 import pygame
 import random
 import math
 import json
-import os
+import asyncio
 
 pygame.init()
 
+# WINDOW
 WIDTH, HEIGHT = 1000, 700
 FPS = 60
 
@@ -16,14 +18,20 @@ clock = pygame.time.Clock()
 FONT = pygame.font.SysFont("consolas", 22)
 BIG_FONT = pygame.font.SysFont("consolas", 52, bold=True)
 
-BLACK = (5, 7, 18)
-WHITE = (240, 245, 255)
-CYAN = (0, 240, 255)
-PINK = (255, 40, 180)
-RED = (255, 60, 80)
-PURPLE = (160, 70, 255)
-GREEN = (60, 255, 150)
-YELLOW = (255, 230, 80)
+# PURPLE DREAM COLORS
+BG_COLOR = (15, 7, 28)
+GRID_COLOR = (42, 22, 65)
+PANEL_COLOR = (29, 14, 48)
+BLACK = (5, 3, 15)
+WHITE = (248, 238, 255)
+PURPLE = (138, 43, 226)
+VIOLET = (186, 85, 255)
+PINK = (255, 105, 180)
+HOT_PINK = (255, 45, 149)
+RED = (255, 75, 110)
+GREEN = (130, 255, 190)
+YELLOW = (255, 190, 240)
+CYAN = VIOLET
 
 SAVE_FILE = "neon_highscore.json"
 
@@ -52,7 +60,7 @@ def save_highscore(score):
     try:
         with open(SAVE_FILE, "w", encoding="utf-8") as file:
             json.dump({"score": score}, file)
-    except OSError:
+    except (OSError, TypeError):
         pass
 
 
@@ -61,13 +69,11 @@ class Particle:
         self.x = x
         self.y = y
         self.color = color
-
         angle = random.random() * math.tau
-        speed = random.uniform(50, 280)
-
+        speed = random.uniform(40, 220)
         self.vx = math.cos(angle) * speed
         self.vy = math.sin(angle) * speed
-        self.life = random.uniform(0.25, 0.7)
+        self.life = random.uniform(0.2, 0.65)
         self.max_life = self.life
 
     def update(self, dt):
@@ -103,7 +109,7 @@ class Bullet:
     def draw(self):
         pygame.draw.circle(
             screen, self.color,
-            (int(self.x), int(self.y)), self.radius
+            (int(self.x), int(self.y)), self.radius + 2
         )
         pygame.draw.circle(
             screen, WHITE,
@@ -113,10 +119,8 @@ class Bullet:
     def dead(self):
         return (
             self.life <= 0
-            or self.x < -30
-            or self.x > WIDTH + 30
-            or self.y < -30
-            or self.y > HEIGHT + 30
+            or self.x < -30 or self.x > WIDTH + 30
+            or self.y < -30 or self.y > HEIGHT + 30
         )
 
 
@@ -126,15 +130,12 @@ class Player:
         self.y = HEIGHT / 2
         self.radius = 14
         self.speed = 270
-
         self.hp = 100
         self.max_hp = 100
-
         self.fire_timer = 0
         self.dash_timer = 0
         self.dash_cooldown = 0
         self.invulnerable = 0
-
         self.rapid_timer = 0
         self.shield_timer = 0
         self.weapon_level = 1
@@ -144,20 +145,17 @@ class Player:
             int(keys[pygame.K_d] or keys[pygame.K_RIGHT])
             - int(keys[pygame.K_a] or keys[pygame.K_LEFT])
         )
-
         dy = (
             int(keys[pygame.K_s] or keys[pygame.K_DOWN])
             - int(keys[pygame.K_w] or keys[pygame.K_UP])
         )
 
         length = math.hypot(dx, dy)
-
         if length:
             dx /= length
             dy /= length
 
         speed = self.speed * (2.7 if self.dash_timer > 0 else 1)
-
         self.x += dx * speed * dt
         self.y += dy * speed * dt
 
@@ -172,7 +170,7 @@ class Player:
         self.shield_timer = max(0, self.shield_timer - dt)
 
         if self.dash_timer > 0 and random.random() < 0.8:
-            particles.append(Particle(self.x, self.y, CYAN))
+            particles.append(Particle(self.x, self.y, HOT_PINK))
 
     def dash(self):
         if self.dash_cooldown <= 0:
@@ -184,11 +182,7 @@ class Player:
         if self.fire_timer > 0:
             return
 
-        angle = math.atan2(
-            target[1] - self.y,
-            target[0] - self.x
-        )
-
+        angle = math.atan2(target[1] - self.y, target[0] - self.x)
         self.fire_timer = 0.09 if self.rapid_timer > 0 else 0.2
 
         if self.weapon_level >= 3:
@@ -200,10 +194,7 @@ class Player:
 
         for shot_angle in angles:
             bullets.append(
-                Bullet(
-                    self.x, self.y, shot_angle,
-                    620, CYAN, 1
-                )
+                Bullet(self.x, self.y, shot_angle, 620, HOT_PINK)
             )
 
     def damage(self, amount):
@@ -223,18 +214,11 @@ class Player:
             if int(pygame.time.get_ticks() / 80) % 2:
                 return
 
-        angle = math.atan2(
-            target[1] - self.y,
-            target[0] - self.x
-        )
-
+        angle = math.atan2(target[1] - self.y, target[0] - self.x)
         points = []
 
         for radius, offset in [
-            (24, 0),
-            (15, 2.5),
-            (10, math.pi),
-            (15, -2.5)
+            (24, 0), (15, 2.5), (10, math.pi), (15, -2.5)
         ]:
             a = angle + offset
             points.append((
@@ -242,15 +226,14 @@ class Player:
                 int(self.y + math.sin(a) * radius)
             ))
 
-        pygame.draw.polygon(screen, CYAN, points, 3)
+        pygame.draw.polygon(screen, VIOLET, points, 3)
         pygame.draw.circle(
-            screen, WHITE,
-            (int(self.x), int(self.y)), 4
+            screen, WHITE, (int(self.x), int(self.y)), 4
         )
 
         if self.shield_timer > 0:
             pygame.draw.circle(
-                screen, PURPLE,
+                screen, PINK,
                 (int(self.x), int(self.y)), 28, 2
             )
 
@@ -259,7 +242,7 @@ class Enemy:
     TYPES = {
         "hunter": (RED, 95, 2, 13),
         "runner": (PINK, 175, 1, 9),
-        "tank": (PURPLE, 48, 6, 21)
+        "tank": (VIOLET, 48, 6, 21),
     }
 
     def __init__(self, wave):
@@ -268,17 +251,13 @@ class Enemy:
             weights=[55, 30, min(25, 5 + wave * 2)]
         )[0]
 
-        self.color, base_speed, base_hp, self.radius = (
-            self.TYPES[self.kind]
-        )
-
+        self.color, base_speed, base_hp, self.radius = self.TYPES[self.kind]
         self.speed = base_speed + min(wave * 2, 65)
         self.hp = base_hp + wave // 4
         self.max_hp = self.hp
         self.damage_value = 10
 
         side = random.randrange(4)
-
         if side == 0:
             self.x, self.y = random.randrange(WIDTH), -25
         elif side == 1:
@@ -292,133 +271,34 @@ class Enemy:
         dx = player.x - self.x
         dy = player.y - self.y
         distance = max(1, math.hypot(dx, dy))
-
         self.x += dx / distance * self.speed * dt
         self.y += dy / distance * self.speed * dt
 
     def draw(self):
         x, y = int(self.x), int(self.y)
-
-        pygame.draw.circle(
-            screen, self.color, (x, y), self.radius, 2
-        )
-        pygame.draw.circle(
-            screen, self.color, (x, y), 4
-        )
+        pygame.draw.circle(screen, self.color, (x, y), self.radius, 2)
+        pygame.draw.circle(screen, self.color, (x, y), 4)
 
         if self.hp < self.max_hp:
             width = self.radius * 2
-
             pygame.draw.rect(
                 screen, RED,
                 (x - width // 2, y - self.radius - 8, width, 4)
             )
-
             pygame.draw.rect(
                 screen, GREEN,
                 (
-                    x - width // 2,
-                    y - self.radius - 8,
-                    int(width * max(0, self.hp) / self.max_hp),
-                    4
+                    x - width // 2, y - self.radius - 8,
+                    int(width * max(0, self.hp) / self.max_hp), 4
                 )
             )
-
-
-class Boss:
-    def __init__(self, wave):
-        self.x = WIDTH / 2
-        self.y = 100
-        self.radius = 38
-
-        self.max_hp = 100 + wave * 15
-        self.hp = self.max_hp
-
-        self.speed = 120
-        self.direction = 1
-        self.shot_timer = 1
-
-    def update(self, dt, player, enemy_bullets):
-        self.x += self.direction * self.speed * dt
-
-        if self.x < 60 or self.x > WIDTH - 60:
-            self.direction *= -1
-
-        self.y = 105 + math.sin(
-            pygame.time.get_ticks() * 0.002
-        ) * 25
-
-        self.shot_timer -= dt
-
-        if self.shot_timer <= 0:
-            self.shot_timer = 0.8 if self.hp < self.max_hp * 0.4 else 1.2
-
-            count = 14 if self.hp < self.max_hp * 0.4 else 9
-
-            for i in range(count):
-                angle = math.tau * i / count
-                enemy_bullets.append(
-                    Bullet(
-                        self.x, self.y, angle,
-                        180, PINK, 12
-                    )
-                )
-
-            aim = math.atan2(
-                player.y - self.y,
-                player.x - self.x
-            )
-
-            for offset in [-0.16, 0, 0.16]:
-                enemy_bullets.append(
-                    Bullet(
-                        self.x, self.y, aim + offset,
-                        260, RED, 15
-                    )
-                )
-
-    def draw(self):
-        x, y = int(self.x), int(self.y)
-
-        pygame.draw.circle(
-            screen, PURPLE, (x, y), self.radius + 9, 2
-        )
-        pygame.draw.circle(
-            screen, PINK, (x, y), self.radius, 3
-        )
-        pygame.draw.circle(
-            screen, RED, (x, y), 13
-        )
-
-        bar_width = 320
-        bar_x = WIDTH // 2 - bar_width // 2
-
-        pygame.draw.rect(
-            screen, RED, (bar_x, 27, bar_width, 12)
-        )
-
-        pygame.draw.rect(
-            screen, PINK,
-            (
-                bar_x, 27,
-                int(bar_width * max(0, self.hp) / self.max_hp),
-                12
-            )
-        )
-
-        text(
-            "THE WARDEN", FONT, PINK,
-            WIDTH // 2, 5, True
-        )
 
 
 class Pickup:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.kind = random.choice(
-            ["heal", "rapid", "shield", "weapon"]
-        )
+        self.kind = random.choice(["heal", "rapid", "shield", "weapon"])
         self.life = 9
 
     def update(self, dt):
@@ -436,26 +316,16 @@ class Pickup:
 
     def draw(self):
         colors = {
-            "heal": GREEN,
-            "rapid": YELLOW,
-            "shield": PURPLE,
-            "weapon": CYAN
+            "heal": GREEN, "rapid": YELLOW,
+            "shield": VIOLET, "weapon": PINK
         }
-
         symbols = {
-            "heal": "+",
-            "rapid": "R",
-            "shield": "S",
-            "weapon": "W"
+            "heal": "+", "rapid": "R", "shield": "S", "weapon": "W"
         }
-
         color = colors[self.kind]
-
         pygame.draw.circle(
-            screen, color,
-            (int(self.x), int(self.y)), 12, 2
+            screen, color, (int(self.x), int(self.y)), 12, 2
         )
-
         text(
             symbols[self.kind], FONT, color,
             int(self.x), int(self.y) - 10, True
@@ -470,21 +340,16 @@ class Game:
 
     def reset(self):
         self.player = Player()
-
         self.bullets = []
         self.enemy_bullets = []
         self.enemies = []
         self.pickups = []
         self.particles = []
-
         self.score = 0
         self.wave = 1
         self.kills = 0
         self.spawn_timer = 0
-        self.boss = None
-        self.next_boss_wave = 5
         self.message_timer = 2.5
-        self.shake = 0
 
     def start(self):
         self.reset()
@@ -499,50 +364,33 @@ class Game:
             return
 
         keys = pygame.key.get_pressed()
-
         self.player.update(dt, keys, self.particles)
-
         self.message_timer = max(0, self.message_timer - dt)
-        self.shake = max(0, self.shake - dt * 20)
-
         self.spawn_timer -= dt
 
         if self.spawn_timer <= 0:
             self.spawn_timer = max(0.25, 1 - self.wave * 0.04)
-
             if len(self.enemies) < 5 + self.wave * 2:
                 self.enemies.append(Enemy(self.wave))
-
-        if self.wave >= self.next_boss_wave and self.boss is None:
-            self.boss = Boss(self.wave)
-            self.next_boss_wave += 5
-            self.message_timer = 3
 
         for enemy in self.enemies[:]:
             enemy.update(dt, self.player)
 
             distance = math.hypot(
-                enemy.x - self.player.x,
-                enemy.y - self.player.y
+                enemy.x - self.player.x, enemy.y - self.player.y
             )
-
             if distance < enemy.radius + self.player.radius:
                 old_hp = self.player.hp
                 self.player.damage(enemy.damage_value)
-
                 if self.player.hp < old_hp:
-                    self.shake = 7
                     self.explode(self.player.x, self.player.y, RED, 8)
-
                 enemy.hp = 0
 
             if enemy.hp <= 0:
                 self.enemies.remove(enemy)
                 self.score += 10
                 self.kills += 1
-
                 self.explode(enemy.x, enemy.y, enemy.color, 10)
-
                 if random.random() < 0.15:
                     self.pickups.append(Pickup(enemy.x, enemy.y))
 
@@ -552,287 +400,204 @@ class Game:
 
             for enemy in self.enemies:
                 if math.hypot(
-                    bullet.x - enemy.x,
-                    bullet.y - enemy.y
+                    bullet.x - enemy.x, bullet.y - enemy.y
                 ) < enemy.radius + bullet.radius:
                     enemy.hp -= bullet.damage
                     self.explode(bullet.x, bullet.y, enemy.color, 3)
                     hit = True
                     break
 
-            if not hit and self.boss:
-                if math.hypot(
-                    bullet.x - self.boss.x,
-                    bullet.y - self.boss.y
-                ) < self.boss.radius:
-                    self.boss.hp -= bullet.damage
-                    hit = True
-
             if hit or bullet.dead():
                 if bullet in self.bullets:
                     self.bullets.remove(bullet)
 
-        if self.boss:
-            self.boss.update(dt, self.player, self.enemy_bullets)
-
-            if self.boss.hp <= 0:
-                self.explode(
-                    self.boss.x, self.boss.y, PINK, 55
-                )
-                self.score += 500
-                self.boss = None
-                self.wave += 1
-                self.message_timer = 3
-
         for bullet in self.enemy_bullets[:]:
             bullet.update(dt)
-
-            if math.hypot(
-                bullet.x - self.player.x,
-                bullet.y - self.player.y
-            ) < self.player.radius + bullet.radius:
-                self.player.damage(bullet.damage)
-
-                if bullet in self.enemy_bullets:
-                    self.enemy_bullets.remove(bullet)
-
-            elif bullet.dead():
+            if bullet.dead():
                 self.enemy_bullets.remove(bullet)
 
         for pickup in self.pickups[:]:
             pickup.update(dt)
-
             if math.hypot(
-                pickup.x - self.player.x,
-                pickup.y - self.player.y
+                pickup.x - self.player.x, pickup.y - self.player.y
             ) < 28:
                 pickup.apply(self.player)
                 self.pickups.remove(pickup)
-
             elif pickup.life <= 0:
                 self.pickups.remove(pickup)
 
         for particle in self.particles[:]:
             particle.update(dt)
-
             if particle.life <= 0:
                 self.particles.remove(particle)
 
-        if self.kills >= self.wave * 12 and self.boss is None:
+        if self.kills >= self.wave * 12:
             self.wave += 1
             self.kills = 0
             self.message_timer = 2
 
         if self.player.hp <= 0:
             self.state = "gameover"
-
             if self.score > self.highscore:
                 self.highscore = self.score
                 save_highscore(self.highscore)
 
     def draw_background(self):
-        screen.fill(BLACK)
-
+        screen.fill(BG_COLOR)
         offset = (pygame.time.get_ticks() // 40) % 40
 
         for x in range(0, WIDTH, 40):
             pygame.draw.line(
-                screen, (15, 25, 43),
-                (x, 0), (x, HEIGHT)
+                screen, GRID_COLOR, (x, 0), (x, HEIGHT)
             )
 
         for y in range(-40, HEIGHT + 40, 40):
             pygame.draw.line(
-                screen, (15, 25, 43),
+                screen, GRID_COLOR,
                 (0, y + offset), (WIDTH, y + offset)
             )
 
         time_value = pygame.time.get_ticks() * 0.02
-
         for i in range(55):
             x = int((i * 173 + time_value * (i % 3 + 1)) % WIDTH)
             y = (i * 97) % HEIGHT
-            screen.set_at((x, y), (35, 55, 75))
+            screen.set_at((x, y), VIOLET)
 
     def draw_hud(self):
-        pygame.draw.rect(
-            screen, (45, 20, 40), (20, 20, 210, 18)
-        )
-
-        hp_width = int(
-            210 * max(0, self.player.hp) / self.player.max_hp
-        )
-
-        pygame.draw.rect(
-            screen, GREEN, (20, 20, hp_width, 18)
-        )
-
-        text(
-            f"HP {max(0, self.player.hp)}",
-            FONT, WHITE, 25, 18
-        )
-
-        text(
-            f"SCORE {self.score}",
-            FONT, CYAN, 20, 50
-        )
-
-        text(
-            f"BEST {self.highscore}",
-            FONT, PURPLE, 20, 78
-        )
-
-        text(
-            f"WAVE {self.wave}",
-            FONT, PINK, WIDTH - 150, 20
-        )
-
-        text(
-            f"KILLS {self.kills}",
-            FONT, WHITE, WIDTH - 150, 50
-        )
+        text(f"HP {max(0, self.player.hp)}", FONT, PINK, 25, 18)
+        text(f"SCORE {self.score}", FONT, VIOLET, 20, 50)
+        text(f"BEST {self.highscore}", FONT, PURPLE, 20, 78)
+        text(f"WAVE {self.wave}", FONT, PINK, WIDTH - 150, 20)
+        text(f"KILLS {self.kills}", FONT, WHITE, WIDTH - 150, 50)
 
         dash_text = (
-            "DASH READY"
-            if self.player.dash_cooldown <= 0
+            "DASH READY" if self.player.dash_cooldown <= 0
             else f"DASH {self.player.dash_cooldown:.1f}s"
         )
-
         dash_color = (
-            GREEN if self.player.dash_cooldown <= 0 else PURPLE
+            PINK if self.player.dash_cooldown <= 0 else VIOLET
         )
-
-        text(
-            dash_text, FONT, dash_color,
-            WIDTH - 150, 80
-        )
+        text(dash_text, FONT, dash_color, WIDTH - 150, 80)
 
         if self.player.rapid_timer > 0:
             text(
                 f"RAPID FIRE {self.player.rapid_timer:.1f}",
-                FONT, YELLOW, WIDTH // 2, 20, True
+                FONT, HOT_PINK, WIDTH // 2, 20, True
             )
 
     def draw(self):
         self.draw_background()
 
         if self.state == "menu":
+            # Decorative neon rings
+            t = pygame.time.get_ticks() * 0.001
+            for radius in (80, 110, 140):
+                r = int(radius + math.sin(t * 2) * 4)
+                pygame.draw.circle(
+                    screen, GRID_COLOR, (WIDTH // 2, 205), r, 1
+                )
+
             text(
-                "NEON DRIFT", BIG_FONT, CYAN,
+                "NEON DRIFT", BIG_FONT, VIOLET,
                 WIDTH // 2, 190, True
             )
-
             text(
-                "// LAST LIGHT", FONT, PINK,
+                "// LAST LIGHT", FONT, HOT_PINK,
                 WIDTH // 2, 245, True
             )
-
             text(
                 "SURVIVE THE NEON NIGHT",
                 FONT, WHITE, WIDTH // 2, 320, True
             )
-
             text(
                 "WASD / ARROWS - MOVE",
-                FONT, CYAN, WIDTH // 2, 380, True
+                FONT, PINK, WIDTH // 2, 380, True
             )
-
             text(
                 "MOUSE - AIM AND FIRE",
-                FONT, CYAN, WIDTH // 2, 420, True
+                FONT, PINK, WIDTH // 2, 420, True
             )
-
             text(
                 "SPACE - DASH",
-                FONT, CYAN, WIDTH // 2, 460, True
+                FONT, PINK, WIDTH // 2, 460, True
             )
 
+            pulse = (math.sin(pygame.time.get_ticks() * 0.006) + 1) / 2
+            start_color = (
+                255,
+                int(45 + pulse * 70),
+                int(149 + pulse * 60)
+            )
             text(
                 "PRESS ENTER TO START",
-                FONT, YELLOW, WIDTH // 2, 530, True
+                FONT, start_color, WIDTH // 2, 530, True
             )
-
             text(
                 f"BEST SCORE: {self.highscore}",
-                FONT, PURPLE, WIDTH // 2, 580, True
+                FONT, VIOLET, WIDTH // 2, 580, True
             )
 
         else:
             for particle in self.particles:
                 particle.draw()
-
             for pickup in self.pickups:
                 pickup.draw()
-
             for bullet in self.bullets:
                 bullet.draw()
-
-            for bullet in self.enemy_bullets:
-                bullet.draw()
-
             for enemy in self.enemies:
                 enemy.draw()
-
-            if self.boss:
-                self.boss.draw()
 
             self.player.draw(pygame.mouse.get_pos())
             self.draw_hud()
 
             if self.message_timer > 0 and self.state == "playing":
                 text(
-                    f"WAVE {self.wave}",
-                    BIG_FONT, CYAN,
+                    f"WAVE {self.wave}", BIG_FONT, VIOLET,
                     WIDTH // 2, HEIGHT // 2 - 40, True
                 )
 
             if self.state == "paused":
+                overlay = pygame.Surface(
+                    (WIDTH, HEIGHT), pygame.SRCALPHA
+                )
+                overlay.fill((15, 7, 28, 210))
+                screen.blit(overlay, (0, 0))
                 text(
-                    "PAUSED", BIG_FONT, YELLOW,
+                    "PAUSED", BIG_FONT, HOT_PINK,
                     WIDTH // 2, HEIGHT // 2, True
                 )
-
                 text(
                     "PRESS P TO RESUME",
-                    FONT, WHITE,
-                    WIDTH // 2, HEIGHT // 2 + 60, True
+                    FONT, WHITE, WIDTH // 2, HEIGHT // 2 + 60, True
                 )
 
             elif self.state == "gameover":
                 overlay = pygame.Surface(
                     (WIDTH, HEIGHT), pygame.SRCALPHA
                 )
-                overlay.fill((0, 0, 0, 190))
+                overlay.fill((15, 7, 28, 220))
                 screen.blit(overlay, (0, 0))
-
                 text(
-                    "SYSTEM FAILURE",
-                    BIG_FONT, RED,
+                    "SYSTEM FAILURE", BIG_FONT, HOT_PINK,
                     WIDTH // 2, HEIGHT // 2 - 80, True
                 )
-
                 text(
-                    f"SCORE: {self.score}",
-                    FONT, WHITE,
+                    f"SCORE: {self.score}", FONT, WHITE,
                     WIDTH // 2, HEIGHT // 2 - 15, True
                 )
-
                 text(
-                    f"BEST: {self.highscore}",
-                    FONT, PURPLE,
+                    f"BEST: {self.highscore}", FONT, VIOLET,
                     WIDTH // 2, HEIGHT // 2 + 25, True
                 )
-
                 text(
                     "ENTER: RETRY   ESC: MENU",
-                    FONT, YELLOW,
-                    WIDTH // 2, HEIGHT // 2 + 90, True
+                    FONT, PINK, WIDTH // 2, HEIGHT // 2 + 90, True
                 )
 
         pygame.display.flip()
 
 
-def main():
+async def main():
     game = Game()
     running = True
 
@@ -869,28 +634,24 @@ def main():
                     game.player.dash()
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if (
-                    event.button == 1
-                    and game.state == "playing"
-                ):
+                if event.button == 1 and game.state == "playing":
                     game.player.shoot(
-                        pygame.mouse.get_pos(),
-                        game.bullets
+                        pygame.mouse.get_pos(), game.bullets
                     )
 
         if game.state == "playing":
             if pygame.mouse.get_pressed()[0]:
                 game.player.shoot(
-                    pygame.mouse.get_pos(),
-                    game.bullets
+                    pygame.mouse.get_pos(), game.bullets
                 )
-
             game.update(dt)
 
         game.draw()
+        await asyncio.sleep(0)
 
     pygame.quit()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
+
