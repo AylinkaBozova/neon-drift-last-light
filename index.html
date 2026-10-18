@@ -24,108 +24,52 @@
             margin: 0;
             padding: 0;
             width: 100%;
-            min-height: 100%;
+            height: 100%;
             background: var(--background);
             color: var(--text);
             font-family: Arial, Helvetica, sans-serif;
             overflow: hidden;
         }
 
-        #infobox,
-        #info,
-        #terminal,
         #pyconsole {
+            width: 100%;
+            height: 100%;
             background-color: #000000;
-            color: #ffffff;
         }
 
-        button {
-            background-color: #000000;
-            color: #ffffff;
-            border: 1px solid var(--accent);
-            border-radius: 8px;
-            padding: 8px 12px;
-        }
-
-        button:hover,
-        button:focus {
-            outline: none;
-            border-color: #ff80bd;
-            box-shadow: 0 0 10px #ff4fa366;
+        #terminal {
+            width: 100%;
+            height: 100%;
         }
 
         canvas {
-            outline-color: var(--accent);
             display: block;
             margin: auto;
+            outline: none;
         }
     </style>
 
-    <!-- Pygame-web скрипт -->
+    <!-- Зареждане на Pygame-web с насочване към main.py -->
     <script
         src="https://pygame-web.github.io/cdn/0.9.3/pythons.js"
         type="module"
         id="site"
         data-python="python3.12"
+        data-os="vtx,snd,gui"
+        data-main="main.py"
         data-LINES="42"
-        data-COLUMNS="132"
-        data-os="vtx,snd,gui">
+        data-COLUMNS="132">
     </script>
 </head>
 <body>
 
-    <div id="system" hidden>
-        <div class="button-container">
-            <div id="load_min">min</div>
-            <div id="load_avg">avg</div>
-            <div id="load_max">max</div>
-            <button id="load_rst" disabled>RESET</button>
-        </div>
-    </div>
-
-    <div id="box" class="emscripten_border" hidden>
-        <div id="info" class="trinfo"></div>
-    </div>
-
     <div id="pyconsole">
-        <div id="terminal" tabindex="1" align="left"></div>
+        <div id="terminal" tabindex="1"></div>
     </div>
-
-    <!-- Основен Python код за играта (ако не се зарежда отделен main.py файл) -->
-    <script type="text/python" id="main">
-import asyncio
-import pygame
-
-async def main():
-    pygame.init()
-    screen = pygame.display.set_mode((800, 600))
-    pygame.display.set_caption("Neon Drift: Last Light")
-    clock = pygame.time.Clock()
-    
-    running = True
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-                
-        screen.fill((10, 10, 20))
-        # Тук може да добавите вашата логика за рисуване
-        
-        pygame.display.flip()
-        await asyncio.sleep(0)
-
-asyncio.run(main())
-    </script>
 
     <script>
-        globalThis.__canvas_resized = (self, ecw, ech) => {
-            console.warn("Canvas resized:", ecw, ech);
-        };
-
         async function custom_onload(debug_hidden) {
-            console.log("custom_onload executed");
-            const pyconsole = document.getElementById("pyconsole");
-            if (pyconsole) pyconsole.hidden = true; // Скрива конзолата, за да се вижда играта
+            console.log("custom_onload: Neon Drift initialized");
         }
 
         function custom_prerun() {
