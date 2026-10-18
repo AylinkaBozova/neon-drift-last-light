@@ -28,9 +28,6 @@
             background: var(--background);
             color: var(--text);
             font-family: Arial, Helvetica, sans-serif;
-        }
-
-        body {
             overflow: hidden;
         }
 
@@ -57,22 +54,22 @@
             box-shadow: 0 0 10px #ff4fa366;
         }
 
-        #load_rst {
-            color: #ffffff;
-        }
-
         canvas {
             outline-color: var(--accent);
+            display: block;
+            margin: auto;
         }
     </style>
 
+    <!-- Pygame-web скрипт -->
     <script
         src="https://pygame-web.github.io/cdn/0.9.3/pythons.js"
         type="module"
         id="site"
         data-python="python3.12"
         data-LINES="42"
-        data-COLUMNS="132">
+        data-COLUMNS="132"
+        data-os="vtx,snd,gui">
     </script>
 </head>
 <body>
@@ -84,67 +81,51 @@
             <div id="load_max">max</div>
             <button id="load_rst" disabled>RESET</button>
         </div>
-
-        <div id="level">(battery level unknown)</div>
-        <div id="stateBattery">(charging state unknown)</div>
     </div>
 
     <div id="box" class="emscripten_border" hidden>
         <div id="info" class="trinfo"></div>
-
-        <iframe
-            id="iframe"
-            class="framed"
-            name="iframe"
-            width="470px"
-            height="90%"
-            allowtransparency="true"
-            style="z-index: 10; background: #000000;"
-            frameborder="1"
-            allowfullscreen="true"
-            webkitallowfullscreen="true"
-            msallowfullscreen="true"
-            mozallowfullscreen="true"
-            sandbox="allow-same-origin allow-top-navigation allow-scripts allow-pointer-lock"
-            allow="autoplay; fullscreen *; gamepad"
-            src="https://pygame-web.github.io/cdn/0.9.3/empty.html"
-            scrolling="yes">
-        </iframe>
-    </div>
-
-    <div id="dlg" hidden>
-        <input type="file" id="dlg_multifile" multiple accept="image/*">
-        <label for="dlg_multifile">Select files</label>
     </div>
 
     <div id="pyconsole">
         <div id="terminal" tabindex="1" align="left"></div>
     </div>
 
+    <!-- Основен Python код за играта (ако не се зарежда отделен main.py файл) -->
+    <script type="text/python" id="main">
+import asyncio
+import pygame
+
+async def main():
+    pygame.init()
+    screen = pygame.display.set_mode((800, 600))
+    pygame.display.set_caption("Neon Drift: Last Light")
+    clock = pygame.time.Clock()
+    
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+                
+        screen.fill((10, 10, 20))
+        # Тук може да добавите вашата логика за рисуване
+        
+        pygame.display.flip()
+        await asyncio.sleep(0)
+
+asyncio.run(main())
+    </script>
+
     <script>
         globalThis.__canvas_resized = (self, ecw, ech) => {
-            console.warn("TODO: panda3d canvas monitor", self, ecw, ech);
+            console.warn("Canvas resized:", ecw, ech);
         };
 
         async function custom_onload(debug_hidden) {
-            console.log("custom_onload");
-
+            console.log("custom_onload executed");
             const pyconsole = document.getElementById("pyconsole");
-            const system = document.getElementById("system");
-            const info = document.getElementById("info");
-            const box = document.getElementById("box");
-
-            if (pyconsole) pyconsole.hidden = debug_hidden;
-            if (system) system.hidden = debug_hidden;
-            if (info) info.hidden = debug_hidden;
-            if (box) box.hidden = debug_hidden;
-
-            document.body.style.background = "#000000";
-            document.body.style.color = "#ffffff";
-
-            if (typeof show_infobox === "function") {
-                show_infobox();
-            }
+            if (pyconsole) pyconsole.hidden = true; // Скрива конзолата, за да се вижда играта
         }
 
         function custom_prerun() {
@@ -153,43 +134,6 @@
 
         function custom_postrun() {
             console.log("custom_postrun");
-        }
-
-        function debug() {
-            if (typeof python !== "undefined" && python.config) {
-                python.config.debug = true;
-            }
-
-            custom_onload(false);
-
-            if (typeof Module !== "undefined" &&
-                typeof Module.PyRun_SimpleString === "function") {
-                Module.PyRun_SimpleString("shell.uptime()");
-            }
-
-            if (typeof window_resize === "function") {
-                window_resize();
-            }
-        }
-
-        function info_inline(data) {
-            document.getElementById("info").innerHTML = data;
-        }
-
-        function info_online(url) {
-            fetch(url)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error("Failed to load: " + response.status);
-                    }
-                    return response.text();
-                })
-                .then(html => info_inline(html))
-                .catch(error => console.warn(error));
-        }
-
-        function frame_online(url) {
-            window.frames["iframe"].location = url;
         }
     </script>
 </body>
