@@ -190,7 +190,8 @@ class Pickup:
 
 class Game:
     def __init__(self):
-        self.state = "menu"
+        # Start direktno v rezhim na igra, za da izbegnem nachalnoto meniu
+        self.state = "playing"
         self.score = 0
         self.highscore = load_highscore()
         self.wave = 1
@@ -199,7 +200,7 @@ class Game:
         self.enemies = []
         self.particles = []
         self.pickups = []
-        self.message_timer = 0
+        self.message_timer = 2.0
         self.spawn_timer = 0
 
     def start(self):
